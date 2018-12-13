@@ -3,7 +3,7 @@ import scipy.stats
 import sklearn
 
 
-def precision_at_n(y_real, y_hat, top_n):
+def precision_at_n(y_real: np.ndarray, y_hat: np.ndarray, top_n: int):
     y_hat_ranks = scipy.stats.rankdata(y_hat, method='average')
     test_y_ranks = scipy.stats.rankdata(y_real, method='average')
     y_hat_maxargs = y_hat_ranks.argsort()
@@ -35,7 +35,8 @@ def evaluate_fold(model: sklearn.base.RegressorMixin, X_tr: np.ndarray,
     return precision_score['te'], precision_score['tr'], spearman_score['te'], spearman_score['tr']
 
 
-def cross_validate_surrogate(model, data, targets, n_folds, top_n, use_k):
+def cross_validate_surrogate(model: sklearn.base.RegressorMixin, data: np.ndarray,
+                             targets: np.ndarray, n_folds: int, top_n: int, use_k: int):
     kf = sklearn.model_selection.KFold(n_splits=n_folds, random_state=42, shuffle=True)
     splits = kf.split(data)
 
