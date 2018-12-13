@@ -21,6 +21,7 @@ def parse_args():
                         default=os.path.expanduser('~') + '/projects/sklearn-bot/data/metafeatures.arff')
     parser.add_argument('--output_directory', type=str,
                         default=os.path.expanduser('~') + '/experiments/meta-models')
+    parser.add_argument('--poly_degree', type=int, default=2)
     parser.add_argument('--task_limit', type=int, default=None, help='For fast testing')
     args_ = parser.parse_args()
     return args_
@@ -52,7 +53,7 @@ def run(args):
     # sklearn objects
     quadratic_model = sklearn.linear_model.LinearRegression()
     random_forest_model = sklearn.ensemble.RandomForestRegressor(n_estimators=16)
-    poly_transform = sklearn.preprocessing.PolynomialFeatures(2)
+    poly_transform = sklearn.preprocessing.PolynomialFeatures(args.poly_degree)
 
     all_tasks = performances['task_id'].unique()
     if args.task_limit is not None:
@@ -139,7 +140,7 @@ def run(args):
     sns.boxplot(x="strategy", y=precision_name, hue="set", data=result_frame, ax=ax)
     plt.savefig(os.path.join(args.output_directory, '%s.png' % precision_name))
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(16, 6))
     sns.boxplot(x="strategy", y=spearman_name, hue="set", data=result_frame, ax=ax)
     plt.savefig(os.path.join(args.output_directory, '%s.png' % spearman_name))
 
