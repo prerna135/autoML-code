@@ -21,6 +21,7 @@ def parse_args():
                         default=os.path.expanduser('~') + '/projects/sklearn-bot/data/metafeatures.arff')
     parser.add_argument('--output_directory', type=str,
                         default=os.path.expanduser('~') + '/experiments/meta-models')
+    parser.add_argument('--task_limit', type=int, default=None, help='For fast testing')
     args_ = parser.parse_args()
     return args_
 
@@ -53,8 +54,11 @@ def run(args):
     random_forest_model = sklearn.ensemble.RandomForestRegressor(n_estimators=16)
     poly_transform = sklearn.preprocessing.PolynomialFeatures(2)
 
-    for idx, task_id in enumerate(performances['task_id'].unique()):
-        logging.info('Processing task %d (%d/%d)' % (task_id, idx+1, len(performances['task_id'].unique())))
+    all_tasks = performances['task_id'].unique()
+    if args.task_limit is not None:
+        all_tasks = all_tasks[:args.task_limit]
+    for idx, task_id in enumerate(all_tasks):
+        logging.info('Processing task %d (%d/%d)' % (task_id, idx+1, len(all_tasks)))
         frame_task = performances.loc[performances['task_id'] == task_id]
         frame_others = performances.loc[performances['task_id'] != task_id]
         assert(frame_task.shape[0] > 100)
@@ -114,8 +118,8 @@ def run(args):
                                                                           frame_task['predictive_accuracy'].values,
                                                                           precision_at_n,
                                                                           precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'quadratic_aggregate', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
-        results.append({'task_id': task_id, 'strategy': 'quadratic_aggregate', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
         columns = list(param_columns) + list(metafeatures.columns.values)
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(random_forest_model,
@@ -125,8 +129,8 @@ def run(args):
                                                                           frame_task['predictive_accuracy'].values,
                                                                           precision_at_n,
                                                                           precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
-        results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
     result_frame = pd.DataFrame(results)
 
