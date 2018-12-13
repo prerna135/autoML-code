@@ -135,7 +135,7 @@ def run(args):
     result_frame = pd.DataFrame(results)
 
     os.makedirs(args.output_directory, exist_ok=True)
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(16, 6))
     sns.boxplot(x="strategy", y=precision_name, hue="set", data=result_frame, ax=ax)
     plt.savefig(os.path.join(args.output_directory, '%s.png' % precision_name))
 
