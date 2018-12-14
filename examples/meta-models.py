@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import openmlcontrib
 import pandas as pd
+import scipy.stats
 import seaborn as sns
 import sklearn.linear_model
 import sklearn.ensemble
 import os
 
-import evaluation
+import evaluation, quadratic
 
 
 def parse_args():
@@ -35,7 +36,14 @@ def parse_args():
 def run(args):
     root = logging.getLogger()
     root.setLevel(logging.INFO)
+    logging.info('Started meta-models.py')
 
+    # some naming declarations
+    precision_name = 'precision_at_%d_out_%d' % (args.precision_at_n, args.precision_out_of_k)
+    spearman_name = 'spearmanr_%d' % args.precision_out_of_k
+    param_columns = ['svc__gamma', 'svc__C']
+
+    # data loading and management
     with open(args.performances_path, 'r') as fp:
         arff_performances = arff.load(fp)
     performances = openmlcontrib.meta.arff_to_dataframe(arff_performances, None)
@@ -47,19 +55,27 @@ def run(args):
     performances = performances.loc[performances['svc__kernel'] == 'rbf']
     # join with meta-features frame, and remove tasks without meta-features
     performances = performances.join(metafeatures, on='task_id', how='inner')
-
-    results = []
-    precision_name = 'precision_at_%d_out_%d' % (args.precision_at_n, args.precision_out_of_k)
-    spearman_name = 'spearmanr_%d' % args.precision_out_of_k
+    # coefficients data
+    coefficients_data = quadratic.generate_coefficients_data(args.poly_degree, performances, param_columns).join(metafeatures, how='inner')
+    logging.info('Generated all datasets')
 
     # sklearn objects
-    quadratic_model = sklearn.linear_model.LinearRegression()
-    random_forest_model = sklearn.ensemble.RandomForestRegressor(n_estimators=args.n_estimators, random_state=args.random_seed)
+    quadratic_model = sklearn.linear_model.LinearRegression(fit_intercept=False)
+    random_forest_model = sklearn.ensemble.RandomForestRegressor(n_estimators=args.n_estimators,
+                                                                 random_state=args.random_seed)
+    random_forest_coef = quadratic.MetaRandomForestQuadratic(n_estimators=args.n_estimators,
+                                                             random_seed=args.random_seed,
+                                                             meta_columns=list(metafeatures.columns.values),
+                                                             base_columns=param_columns,
+                                                             poly_degree=args.poly_degree)
     poly_transform = sklearn.preprocessing.PolynomialFeatures(args.poly_degree)
 
+    # determine relevant tasks
     all_tasks = performances['task_id'].unique()
     if args.task_limit is not None:
         all_tasks = all_tasks[:args.task_limit]
+
+    results = []
     for idx, task_id in enumerate(all_tasks):
         logging.info('Processing task %d (%d/%d)' % (task_id, idx+1, len(all_tasks)))
         frame_task = performances.loc[performances['task_id'] == task_id]
@@ -67,11 +83,10 @@ def run(args):
         assert(frame_task.shape[0] > 100)
 
         # some convenience datasets
-        param_columns = ['svc__gamma', 'svc__C']
-        X_poly_train = poly_transform.fit_transform(frame_others[param_columns].values)[:, 1:]
-        X_poly_test = poly_transform.fit_transform(frame_task[param_columns].values)[:, 1:]
-        X_poly_meta_train = np.concatenate((X_poly_train, frame_others[metafeatures.columns.values]), axis=1)
-        X_poly_meta_test = np.concatenate((X_poly_test, frame_task[metafeatures.columns.values]), axis=1)
+        X_poly_train = poly_transform.fit_transform(frame_others[param_columns].values)
+        X_poly_test = poly_transform.fit_transform(frame_task[param_columns].values)
+        # X_poly_meta_train = np.concatenate((X_poly_train, frame_others[metafeatures.columns.values]), axis=1)
+        # X_poly_meta_test = np.concatenate((X_poly_test, frame_task[metafeatures.columns.values]), axis=1)
 
         # surrogates
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.cross_validate_surrogate(quadratic_model,
@@ -114,15 +129,15 @@ def run(args):
         results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
         # meta-models
-        prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(quadratic_model,
-                                                                          X_poly_meta_train,
-                                                                          frame_others['predictive_accuracy'].values,
-                                                                          X_poly_meta_test,
-                                                                          frame_task['predictive_accuracy'].values,
-                                                                          args.precision_at_n,
-                                                                          args.precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
-        results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        # prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(quadratic_model,
+        #                                                                   X_poly_meta_train,
+        #                                                                   frame_others['predictive_accuracy'].values,
+        #                                                                   X_poly_meta_test,
+        #                                                                   frame_task['predictive_accuracy'].values,
+        #                                                                   args.precision_at_n,
+        #                                                                   args.precision_out_of_k)
+        # results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        # results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
         columns = list(param_columns) + list(metafeatures.columns.values)
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(random_forest_model,
@@ -135,9 +150,21 @@ def run(args):
         results.append({'task_id': task_id, 'strategy': 'RF_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
         results.append({'task_id': task_id, 'strategy': 'RF_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
+        # special case: random forest that predicts coefficients of base task
+        random_forest_coef.fit(coefficients_data[metafeatures.columns.values].values,
+                               coefficients_data[quadratic.get_coefficient_names()].values)
+        # note that this code is an almost duplicate from the precision module.
+        y_hat = random_forest_coef.predict(frame_task)
+        rand_indices = np.random.randint(len(frame_task), size=args.precision_out_of_k)
+        prec_te = evaluation.precision_at_n(frame_task['predictive_accuracy'].values[rand_indices], y_hat[rand_indices], args.precision_at_n)
+        spearm_te = scipy.stats.pearsonr(frame_task['predictive_accuracy'].values[rand_indices], y_hat[rand_indices])[0]
+        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+
     result_frame = pd.DataFrame(results)
 
     os.makedirs(args.output_directory, exist_ok=True)
+    result_frame.to_csv(os.path.join(args.output_directory, 'results.csv'))
+
     fig, ax = plt.subplots(figsize=(16, 6))
     sns.boxplot(x="strategy", y=precision_name, hue="set", data=result_frame, ax=ax)
     plt.savefig(os.path.join(args.output_directory, '%s.png' % precision_name))

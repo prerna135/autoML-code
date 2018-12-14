@@ -1,9 +1,10 @@
 import numpy as np
 import scipy.stats
 import sklearn
+import typing
 
 
-def precision_at_n(y_real: np.ndarray, y_hat: np.ndarray, top_n: int):
+def precision_at_n(y_real: np.ndarray, y_hat: np.ndarray, top_n: int) -> float:
     y_hat_ranks = scipy.stats.rankdata(y_hat, method='average')
     test_y_ranks = scipy.stats.rankdata(y_real, method='average')
     y_hat_maxargs = y_hat_ranks.argsort()
@@ -17,14 +18,13 @@ def precision_at_n(y_real: np.ndarray, y_hat: np.ndarray, top_n: int):
 
 def evaluate_fold(model: sklearn.base.RegressorMixin, X_tr: np.ndarray,
                   y_tr: np.ndarray, X_te: np.ndarray, y_te: np.ndarray,
-                  top_n: int, use_k: int):
+                  top_n: int, use_k: int) -> typing.Tuple[float, float, float, float]:
     new_model = sklearn.base.clone(model)
     new_model.fit(X_tr, y_tr)
     experiments = {
         'tr': (X_tr, y_tr),
         'te': (X_te, y_te),
     }
-
     precision_score = dict()
     spearman_score = dict()
     for exp_type, (X, y) in experiments.items():
@@ -36,7 +36,8 @@ def evaluate_fold(model: sklearn.base.RegressorMixin, X_tr: np.ndarray,
 
 
 def cross_validate_surrogate(model: sklearn.base.RegressorMixin, data: np.ndarray,
-                             targets: np.ndarray, n_folds: int, top_n: int, use_k: int):
+                             targets: np.ndarray, n_folds: int, top_n: int,
+                             use_k: int) -> typing.Tuple[float, float, float, float]:
     kf = sklearn.model_selection.KFold(n_splits=n_folds, random_state=42, shuffle=True)
     splits = kf.split(data)
 
@@ -53,7 +54,7 @@ def cross_validate_surrogate(model: sklearn.base.RegressorMixin, data: np.ndarra
         spearman_scores_te.append(spearm_te)
         spearman_scores_tr.append(spearm_tr)
 
-    return np.mean(precision_scores_te), \
-           np.mean(precision_scores_tr), \
-           np.mean(spearman_scores_te), \
-           np.mean(spearman_scores_tr)
+    return float(np.mean(precision_scores_te)), \
+           float(np.mean(precision_scores_tr)), \
+           float(np.mean(spearman_scores_te)), \
+           float(np.mean(spearman_scores_tr))
