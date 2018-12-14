@@ -90,26 +90,35 @@ def run(args):
         # X_poly_meta_train = np.concatenate((X_poly_train, frame_others[metafeatures.columns.values]), axis=1)
         # X_poly_meta_test = np.concatenate((X_poly_test, frame_task[metafeatures.columns.values]), axis=1)
 
-        # surrogates
+        #######################
+        # SURROGATES          #
+        #######################
+
+        # quadratic
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.cross_validate_surrogate(quadratic_model,
                                                                                      X_poly_test,
                                                                                      frame_task['predictive_accuracy'].values,
                                                                                      args.cv_iterations,
                                                                                      args.precision_at_n,
                                                                                      args.precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'quadratic_surrogate', 'set': 'train-obs', precision_name: prec_tr, spearman_name: spearm_tr})
-        results.append({'task_id': task_id, 'strategy': 'quadratic_surrogate', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'quadratic_surrogate', 'x_order': 61, 'set': 'train-obs', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'quadratic_surrogate', 'x_order': 60, 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
 
+        # random forest
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.cross_validate_surrogate(random_forest_model,
                                                                                      frame_task[param_columns].values,
                                                                                      frame_task['predictive_accuracy'].values,
                                                                                      args.cv_iterations,
                                                                                      args.precision_at_n,
                                                                                      args.precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'RF_surrogate', 'set': 'train-obs', precision_name: prec_tr, spearman_name: spearm_tr})
-        results.append({'task_id': task_id, 'strategy': 'RF_surrogate', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'RF_surrogate', 'x_order': 31, 'set': 'train-obs', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'RF_surrogate', 'x_order': 30, 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
 
-        # aggregates
+        #######################
+        # AGGREGATES          #
+        #######################
+
+        # quadratic
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(quadratic_model,
                                                                           X_poly_train,
                                                                           frame_others['predictive_accuracy'].values,
@@ -117,9 +126,10 @@ def run(args):
                                                                           frame_task['predictive_accuracy'].values,
                                                                           args.precision_at_n,
                                                                           args.precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'quadratic_aggregate', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
-        results.append({'task_id': task_id, 'strategy': 'quadratic_aggregate', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'quadratic_aggregate', 'x_order': 41, 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'quadratic_aggregate', 'x_order': 40, 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
+        # random forest
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(random_forest_model,
                                                                           frame_others[param_columns],
                                                                           frame_others['predictive_accuracy'].values,
@@ -127,8 +137,8 @@ def run(args):
                                                                           frame_task['predictive_accuracy'].values,
                                                                           args.precision_at_n,
                                                                           args.precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
-        results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'x_order': 11, 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'RF_aggregate', 'x_order': 10, 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
         # meta-models
         # prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(quadratic_model,
@@ -141,6 +151,11 @@ def run(args):
         # results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
         # results.append({'task_id': task_id, 'strategy': 'quadratic_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
+        ############################
+        # META-MODELS              #
+        ############################
+
+        # random forest
         columns = list(param_columns) + list(metafeatures.columns.values)
         prec_te, prec_tr, spearm_te, spearm_tr = evaluation.evaluate_fold(random_forest_model,
                                                                           frame_others[columns],
@@ -149,8 +164,8 @@ def run(args):
                                                                           frame_task['predictive_accuracy'].values,
                                                                           args.precision_at_n,
                                                                           args.precision_out_of_k)
-        results.append({'task_id': task_id, 'strategy': 'RF_meta', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
-        results.append({'task_id': task_id, 'strategy': 'RF_meta', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta', 'x_order': 21, 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta', 'x_order': 20, 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
         # special case: random forest that predicts coefficients of base task
         random_forest_coef.fit(coefficients_train_frame[metafeatures.columns.values].values,
@@ -160,15 +175,19 @@ def run(args):
         rand_indices_te = np.random.randint(len(frame_task), size=args.precision_out_of_k)
         prec_te = evaluation.precision_at_n(frame_task['predictive_accuracy'].values[rand_indices_te],y_hat_te[rand_indices_te], args.precision_at_n)
         spearm_te = scipy.stats.pearsonr(frame_task['predictive_accuracy'].values[rand_indices_te], y_hat_te[rand_indices_te])[0]
-        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'x_order': 51, 'set': 'test', precision_name: prec_te, spearman_name: spearm_te})
         # again, duplicate (TODO: refactor)
         y_hat_tr = random_forest_coef.predict(frame_task)
         rand_indices_tr = np.random.randint(len(frame_task), size=args.precision_out_of_k)
         prec_tr = evaluation.precision_at_n(frame_task['predictive_accuracy'].values[rand_indices_tr], y_hat_tr[rand_indices_tr], args.precision_at_n)
         spearm_tr = scipy.stats.pearsonr(frame_task['predictive_accuracy'].values[rand_indices_tr], y_hat_tr[rand_indices_tr])[0]
-        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'x_order': 50, 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
-    result_frame = pd.DataFrame(results)
+    # x_order is used to trick seaborn plot into using the right order
+    # general order: first random forest models, then quadratic models
+    # secondary order: first aggregates, then meta-models, then surrogates
+    # tertiary order: first train-tasks, then test, then test-obs
+    result_frame = pd.DataFrame(results).sort_values(['x_order'])
 
     os.makedirs(args.output_directory, exist_ok=True)
     result_frame.to_csv(os.path.join(args.output_directory, 'results.csv'))
