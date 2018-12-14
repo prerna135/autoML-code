@@ -166,7 +166,7 @@ def run(args):
         rand_indices_tr = np.random.randint(len(frame_task), size=args.precision_out_of_k)
         prec_tr = evaluation.precision_at_n(frame_task['predictive_accuracy'].values[rand_indices_tr], y_hat_tr[rand_indices_tr], args.precision_at_n)
         spearm_tr = scipy.stats.pearsonr(frame_task['predictive_accuracy'].values[rand_indices_tr], y_hat_tr[rand_indices_tr])[0]
-        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'set': 'train-task', precision_name: prec_tr, spearman_name: spearm_tr})
+        results.append({'task_id': task_id, 'strategy': 'RF_meta_coeff', 'set': 'train-tasks', precision_name: prec_tr, spearman_name: spearm_tr})
 
     result_frame = pd.DataFrame(results)
 
