@@ -57,6 +57,7 @@ def run(args):
     performances = performances.join(metafeatures, on='task_id', how='inner')
     # coefficients data
     coefficients_data = quadratic.generate_coefficients_data(args.poly_degree, performances, param_columns).join(metafeatures, how='inner')
+    coefficients_data.to_csv(os.path.join(args.output_directory, 'coefficients.csv'))
     logging.info('Generated all datasets')
 
     # sklearn objects
